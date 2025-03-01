@@ -240,11 +240,12 @@ class Monitor(object):
 
     delimiter=';'
 
-    m_fatal =1    # fatal erros caused by PiPresents, could be a consequence of an 'error'
-    m_err = 2  # PP cannot continue because of an error caused by user in profile or command
-    m_warn =4  # warning that something is not quite right but PP recovers gracefully
-    m_log =8  # log of interest to profile developers
-    m_trace =16 # trace for software development
+    m_fatal = 1  # fatal erros caused by PiPresents, could be a consequence of an 'error'
+    m_err   = 2  # PP cannot continue because of an error caused by user in profile or command
+    m_warn  = 4  # warning that something is not quite right but PP recovers gracefully
+    m_info  = 4  # high priority info
+    m_log   = 8  # low priority info - log of interest to profile developers
+    m_trace = 16 # trace for software development
     m_trace_instance =32 # trace with id of instances of player and showers
     m_leak = 64 # memory leak monitoring
     m_stats = 128  #statistics
@@ -312,6 +313,37 @@ class Monitor(object):
 
 
     # PRINTING
+
+    # Console output depends on severity
+    # File output is always printed and has higher timestamp precision and caller instance
+    def write(self, caller, severity, severityText, message, lines=None):
+        r_class = caller.__class__.__name__
+        if self.enabled(r_class, severity) is True:
+            timestamp = f"{self.timeStamp():8.2f}"
+            space = " "
+            console_message = f"{timestamp} {r_class:15}: {severityText:8} {message}"
+            # wrapped_text = textwrap.wrap(console_message, width=120, initial_indent='', subsequent_indent=f"{space:35}")
+            # for line in wrapped_text:
+            print(console_message)
+            if lines:
+                for line in lines:
+                    print(f"{space:20} line")
+        # always print everything to log
+        timestamp = f"{self.timeStamp():14.6f}"
+        self.ofile.write(f"{timestamp} {r_class:15} {id(caller):8x}: {severityText:8} {message}\n")
+    
+    # Just output the timestamp and the message
+    def writeTimestampWithMessage(self, message):
+        timestamp = f"{self.timeStamp():8.2f}"
+        print(f"{timestamp} : {message}")
+        timestamp = f"{self.timeStamp():8.6f}"
+        self.open()
+        self.ofile.write(f"{timestamp} : {message}")
+        self.flush()
+
+    def timeStamp(self):
+        timeElapsed = time.time() - Monitor.start_time
+        return timeElapsed
   
     def newline(self,num):
         if Monitor.manager is False:
@@ -323,9 +355,8 @@ class Monitor(object):
         r_class=caller.__class__.__name__
         r_func = sys._getframe(1).f_code.co_name
         r_line =  str(sys._getframe(1).f_lineno)
-        if self.enabled(r_class,Monitor.m_fatal) is True: 
-            print("%.2f" % (time.time()-Monitor.start_time), " System Error: ",r_class+"/"+ r_func + "/"+ r_line + ": ", text)
-            Monitor.ofile.write (" SYSTEM ERROR: " + r_class +"/"+ r_func + "/"+ r_line + ": " + text + "\n")
+        if self.enabled(r_class,Monitor.m_fatal) is True:
+            self.writeTimestampWithMessage(f"System Error: {r_class}/{r_func}:{r_line} : {text}")
         if Monitor.manager is False:
             all_text=r_class +'\n'+text
             PPDialog(Monitor.app,Monitor.develop_window,None,ok=True,finish=102,text=all_text,title='System Error')
@@ -333,18 +364,14 @@ class Monitor(object):
     def err(self,caller,text):
         r_class=caller.__class__.__name__
         if self.enabled(r_class,Monitor.m_err) is True:        
-            print("%.2f" % (time.time()-Monitor.start_time), " Profile Error: ",r_class+": ", text)
-            Monitor.ofile.write (" ERROR: " + self.pretty_inst(caller)+ ":  " + text + "\n")
+            self.writeTimestampWithMessage(f"Profile Error: {r_class} : {text}")
         if Monitor.manager is False:
             all_text=r_class +'\n'+text
             PPDialog(Monitor.app,Monitor.develop_window,None,ok=True,finish=102,text=all_text,title='Profile Error')
             
                                         
     def warn(self,caller,text):
-        r_class=caller.__class__.__name__
-        if self.enabled(r_class,Monitor.m_warn) is True:     
-            print("%.2f" % (time.time()-Monitor.start_time), " Warning: ",self.pretty_inst(caller) +": ", text)
-            Monitor.ofile.write (" WARNING: " + self.pretty_inst(caller)+ ":  " + text + "\n")
+        self.write(caller, Monitor.m_warn, "WARN", text)
 
     def sched(self,caller,pipresents_time,text):
         r_class=caller.__class__.__name__
@@ -357,14 +384,11 @@ class Monitor(object):
             # print "%.2f" % (time.time()-Monitor.start_time) +" "+self.pretty_inst(caller)+": " + text
             Monitor.ofile.write (time.strftime("%Y-%m-%d %H:%M") + " " + self.pretty_inst(caller)+": " + text+"\n")
 
-
-
+    def info(self, caller, text):
+        self.write(caller, Monitor.m_info, "INFO", text)
+        
     def log(self,caller,text):
-        r_class=caller.__class__.__name__
-        if self.enabled(r_class,Monitor.m_log) is True:
-            print("%.2f" % (time.time()-Monitor.start_time) +" "+r_class+": " + text)
-            # print "%.2f" % (time.time()-Monitor.start_time) +" "+self.pretty_inst(caller)+": " + text
-            Monitor.ofile.write (str(time.time()-Monitor.start_time) + " " + self.pretty_inst(caller)+": " + text+"\n")
+        self.write(caller, Monitor.m_log, "LOG", text)
 
     def start_stats(self,profile):
             Monitor.profile = profile        
@@ -373,8 +397,7 @@ class Monitor(object):
     def stats(self,*args):
         if (Monitor.m_stats & Monitor.log_level) != 0:
             Monitor.sr.write_stats(datetime.datetime.now(),Monitor.profile,*args)
-     
-            
+    
     def trace(self,caller,text):
         r_class=caller.__class__.__name__
         r_class = type(caller).__name__

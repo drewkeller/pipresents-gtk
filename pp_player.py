@@ -31,10 +31,11 @@ class Player():
         # create debugging log object
         self.mon=Monitor()
 
-        self.mon.trace(self,'')
+        self.show_id=show_id
+        self.show_params=show_params
+        self.mon.trace(self, self.logMessage())
 
         # instantiate arguments
-        self.show_id=show_id
         self.showlist=showlist
         self.root=root
         self.canvas=canvas['canvas-obj']
@@ -89,6 +90,14 @@ class Player():
         self.tick_timer=None
         self.terminate_signal=False
         self.play_state=''
+
+    def logMessage(self, message = None):
+        show_id = self.show_id
+        showRef = self.show_params['show-ref']
+        if message:
+            return f"[{show_id:2}]{showRef:15}> {message}"
+        else:
+            return showRef
 
 
     def parse_window(self,line):

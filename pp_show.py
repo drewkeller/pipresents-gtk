@@ -98,6 +98,14 @@ class Show(object):
         if self.show_params['background-image'] != '':
             self.background_file= self.show_params['background-image']
 
+    def logMessage(self, message = None):
+        show_id = self.show_id
+        showRef = self.show_params['show-ref']
+        if message:
+            return f"[{show_id:2}]{showRef:15}: {message}"
+        else:
+            return showRef
+
     def base_play(self,end_callback,show_ready_callback, parent_kickback_signal,level,controls_list):
 
         """ starts the common parts of the show

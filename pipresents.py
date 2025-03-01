@@ -153,6 +153,9 @@ class PiPresents(object):
 
         self.mon.log(self,'Display Manager: '+os.environ['XDG_SESSION_TYPE'])
 
+        self.mon.mem(self)
+        self.mon.info(self, "====================== Startup")
+
         #if "DESKTOP_SESSION" not in os.environ:
         #    self.error_exit(self,'Pi Presents must be run from the Desktop')
         #else:
@@ -827,7 +830,8 @@ class PiPresents(object):
 
             # close logging files
             #self.mon.finish()
-            #print('uncollectable garbage',gc.collect())
+            print('uncollectable garbage',gc.collect())
+            self.mon.leak_graphs(["Canvas", "PiPresents", "ShowManager", "Show", "LiveShow", "MediaShow", "ImagePlayer", "MPVPlayer"])
             print ('error exit')
             if self.in_error_exit is True:
                 sys.exit(102)

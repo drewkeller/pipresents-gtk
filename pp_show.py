@@ -6,6 +6,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import GLib,Gtk
 from pp_gtkutils import CSS
+import gc
 
 
 from pp_showmanager import ShowManager
@@ -98,13 +99,10 @@ class Show(object):
         if self.show_params['background-image'] != '':
             self.background_file= self.show_params['background-image']
 
-    def logMessage(self, message = None):
+    def logMessage(self, message = ""):
         show_id = self.show_id
         showRef = self.show_params['show-ref']
-        if message:
-            return f"[{show_id:2}]{showRef:15}: {message}"
-        else:
-            return showRef
+        return f"[{show_id:2}]{showRef:15}: {message}"
 
     def base_play(self,end_callback,show_ready_callback, parent_kickback_signal,level,controls_list):
 
@@ -362,6 +360,8 @@ class Show(object):
             if self.leak is True:
                 print('shower = None',self.shower.show_params['title'])
             self.shower=None
+        uncollected_objects = gc.collect()
+        self.mon.info(self, self.logMessage(f"Uncollectable objects: {uncollected_objects}"))
 
     # used by end_shower to get the last track of the subshow
     def base_end_shower(self):
@@ -520,7 +520,6 @@ class Show(object):
         self.mon.log(self, self.logMessage(f"Ending Show"))
         self.end_callback(self.show_id,reason,message)
         self=None
-
 
     def base_subshow_ended_callback(self):
         # called by end_shower of a parent show  to get the last track of the subshow and the subshow

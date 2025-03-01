@@ -75,7 +75,8 @@ class MPVDriver(object):
         self.load_status_timer=None
         self.css=CSS()
       
-
+    def logMessage(self, message = ""):
+        return f"> state:{self.state:10} {message}"
 
 
     def load(self,track,options,x,y,width,height):
@@ -98,6 +99,7 @@ class MPVDriver(object):
         self.canvas.put(self.rend,x,y)
 
     def file_has_video(self,path):
+        self.mon.trace(self, self.logMessage())
         file_info = MediaInfo.parse(path)
         #print(file_info)
         for track in file_info.tracks:
@@ -107,6 +109,7 @@ class MPVDriver(object):
 
 
     def on_renderer_ready(self, *_):
+        self.mon.trace(self, self.logMessage())
         self.player=self.rend.get_player()
         status,message=self.apply_options(self.options)
         if status == 'error':
@@ -123,6 +126,7 @@ class MPVDriver(object):
         
 
     def load_property_change(self,name,value):
+        self.mon.trace(self, self.logMessage(f"property change: {name}={value}"))
         #print (name,value)
         if name=='time-pos' and value is not None and value>=0:
             self.rend.set_visible(False)
@@ -136,6 +140,7 @@ class MPVDriver(object):
 
 
     def load_status_loop(self):
+        self.mon.trace(self, self.logMessage())
         GLib.source_remove(self.load_status_timer)
         self.load_status_timer=None
         if self.quit_load_signal is True:
@@ -171,6 +176,7 @@ class MPVDriver(object):
         self.load_status_timer=GLib.timeout_add(10,self.load_status_loop)
 
     def apply_options(self,options):
+        self.mon.trace(self, self.logMessage())
         #print ('OPTIONS')
         for option in options:
             #print (option[0],option[1])
@@ -181,6 +187,7 @@ class MPVDriver(object):
         return 'normal',''
 
     def show(self,initial_volume):
+        self.mon.trace(self, self.logMessage())
         #print ('showing')
         if self.freeze_at_start == 'no':
             self.state='show-showing'
@@ -200,6 +207,7 @@ class MPVDriver(object):
 
 
     def show_complete_change(self,name,value):
+        self.mon.trace(self, self.logMessage())
         self.show_position=-1
         #print (name,value)
         #print (name,value,self.duration,self.duration-0.12)
@@ -224,6 +232,7 @@ class MPVDriver(object):
                 return
  
     def show_status_loop(self):
+        self.mon.trace(self, self.logMessage())
         if self.show_status_timer !=None:
             GLib.source_remove(self.show_status_timer)
             self.show_status_timer=None
@@ -266,6 +275,7 @@ class MPVDriver(object):
             
 
     def close(self):
+        self.mon.trace(self, self.logMessage())
         #print ('in close')
         self.player.video=False
         #self.player.pause=False

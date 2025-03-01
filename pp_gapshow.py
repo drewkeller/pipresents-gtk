@@ -7,6 +7,8 @@ from pp_screendriver import ScreenDriver
 import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import GLib
+import psutil
+import gc
 
 class GapShow(Show):
     """
@@ -74,6 +76,8 @@ class GapShow(Show):
         self.controls_list=[]
         self.enable_hint= True
         self.escapetrack_required=False
+
+        self.previous_rss = 0
         
     def play(self,end_callback,show_ready_callback, parent_kickback_signal,level,controls_list):
         self.mon.newline(3)
@@ -757,6 +761,11 @@ class GapShow(Show):
                     # nothing special to do at end of list, just repeat or exit
                     elif self.show_params['sequence'] in ("ordered",'reverse'):
                         #self.mon.info(self, self.logMessage("ordered or reverse show"))
+                        if show_ref == 'main' or show_ref == 'mymediashow':
+                            uncollected_objects = gc.collect()
+                            self.mon.info(self, self.logMessage("---------------------------------- Repeating main show"))
+                            self.mon.info(self, self.logMessage(f"Uncollectable objects: {uncollected_objects}"))
+                            self.previous_rss = self.mon.mem(self, self.logMessage(), self.previous_rss)
                         if self.show_params['repeat'] == 'repeat':
                             # print 'repeating at end of list'
                             self.wait_for_trigger()
@@ -841,6 +850,7 @@ class GapShow(Show):
     def end(self,reason,message):
         self.mon.trace(self, self.logMessage("Ending gapshow"))
         Show.base_end(self,reason,message)
+        self = None
 
 
 

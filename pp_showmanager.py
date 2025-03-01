@@ -214,6 +214,7 @@ class ShowManager(object):
 
 
     def _end_play_show(self,index,reason,message):
+        self.mon.leak_graphs(["LiveShow", "MediaShow", "ImagePlayer", "MPVPlayer", "Canvas"])
         show_ref_to_exit =ShowManager.shows[index][ShowManager.SHOW_REF]
         show_to_exit =ShowManager.shows[index][ShowManager.SHOW_OBJ]
         self.mon.sched(self,TimeOfDay.now,'Closed show: ' + show_ref_to_exit)

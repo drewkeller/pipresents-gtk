@@ -316,6 +316,7 @@ class MPVPlayer(Player):
 
     def load_track_content(self):
         #process mpv parameters
+        self.mon.trace(self, self.logMessage())
         status,message=self.process_params()
         if status == 'error':
             return status,message
@@ -325,16 +326,20 @@ class MPVPlayer(Player):
             if not os.path.exists(self.track):
                 return 'error',"Track file not found: "+ self.track
 
+        self.mon.trace(self, self.logMessage("- Creating MPVDriver"))
         self.mpvdriver = MPVDriver(self.root,self.video_canvas,self.freeze_at_start,self.freeze_at_end,self.background_colour)
+        self.mon.trace(self, self.logMessage(f"- Created MPVDriver: {id(self.mpvdriver):10x}"))
 
         # load the media
+        self.mon.trace(self, self.logMessage("- loading media"))
         self.mpvdriver.load(self.track,self.options,self.x,self.y,self.width,self.height)
+        self.mon.trace(self, self.logMessage("- loaded media"))
 
         return 'normal','mpv track loaded'
 
 
 
-     # SHOW - show a track      
+    # SHOW - show a track      
     def show(self,ready_callback,finished_callback,closed_callback):
         self.ready_callback=ready_callback         # callback when paused after load ready to show video
         self.finished_callback=finished_callback         # callback when finished showing
@@ -420,10 +425,12 @@ class MPVPlayer(Player):
 
     def start_state_machine_load(self):
         # initialise all the state machine variables
+        self.mon.trace(self, self.logMessage())
         self.play_state='loading'
         self.tick_timer=GLib.timeout_add(1, self.load_state_machine) #50
         
     def load_state_machine(self):
+        self.mon.trace(self, self.logMessage(f"- play_state:{self.play_state}"))
         if self.tick_timer is not None:
             GLib.source_remove(self.tick_timer)
             self.tick_timer=None
@@ -491,6 +498,7 @@ class MPVPlayer(Player):
 
             
     def start_state_machine_show(self):
+        self.mon.trace(self, self.logMessage(f"- play_state:{self.play_state}"))
         if self.play_state == 'loaded':
             self.play_state='showing'
             
@@ -512,10 +520,12 @@ class MPVPlayer(Player):
 
 
     def show_state_machine(self):
+        self.mon.trace(self, self.logMessage(f"- play_state:{self.play_state}"))
         if self.tick_timer is not None:
             GLib.source_remove(self.tick_timer)
             self.tick_timer=None
         if self.play_state=='showing':
+            self.mon.trace(self, self.logMessage(f"- play_state:{self.play_state}"))
             if self.quit_signal is True:
                 # service any queued stop signals by sending stop to mpvdriver
                 self.quit_signal=False
@@ -557,7 +567,7 @@ class MPVPlayer(Player):
 
     # respond to normal stop
     def stop(self):
-        self.mon.log(self,">stop received from show Id: "+ str(self.show_id))
+        self.mon.log(self, self.logMessage(f"stop received from show Id: {self.show_id}"))
         # cancel the pause timer
         if self.pause_timer != None:
             GLib.source_remove(self.pause_timer)
@@ -566,7 +576,7 @@ class MPVPlayer(Player):
 
 
     def start_state_machine_close(self):
-        # self.mon.log(self,">close received from show Id: "+ str(self.show_id))
+        self.mon.log(self, self.logMessage(f"close received from show Id: {self.show_id}"))
         # cancel the pause timer
         if self.pause_timer != None:
             GLib.source_remove(self.pause_timer)

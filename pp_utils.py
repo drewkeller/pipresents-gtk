@@ -9,6 +9,8 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk,Gdk,GLib
 from pp_gtkutils import CSS 
 from pp_statsrecorder import Statsrecorder
+import objgraph
+import psutil
 # from pympler.tracker import SummaryTracker
 # from pympler import summary, muppy
 # import types
@@ -283,7 +285,29 @@ class Monitor(object):
         Monitor.sr=Statsrecorder()
         Monitor.sr.init(Monitor.log_path)
 
+    def mem(self, caller, message="", previous_rss=-1):
+        process = psutil.Process()
+        memory_info = process.memory_info()
+        rss = memory_info.rss
+        kB = 1024
+        MB = kB * 1024
+        rss_message = f"{message} RSS: {(rss/MB):>10.3f} MB"
+        if previous_rss != -1:
+            delta_rss = rss - previous_rss
+            # units are in bytes, but precision is actually kibibytes (divide by 1024, you will always get a whole number)
+            rss_message += f" ({(delta_rss/kB):>+10.0f} kB)"
+        self.write(caller, Monitor.m_warn, "MEM", rss_message)
+        return rss
 
+    def leak_graphByType(self, type):
+        print(f"Generating graph for {type}...")
+        timestamp = datetime.datetime.now().strftime('%Y-%m%d-%H%M%S')
+        filename = f"{Monitor.log_path}{os.sep}pp_logs{os.sep}backrefs_{timestamp}_{type}.png"
+        objgraph.show_backrefs(objgraph.by_type(type), filename=filename)
+
+    def leak_graphs(self, type_names = []):
+        for type in type_names:
+            self.leak_graphByType(type)
 
     def leak_diff(self):
         Monitor.tracker.print_diff()
@@ -318,10 +342,11 @@ class Monitor(object):
     # File output is always printed and has higher timestamp precision and caller instance
     def write(self, caller, severity, severityText, message, lines=None):
         r_class = caller.__class__.__name__
+        space = " "
+        trace_pad = f"{space:32}" if self.enabled(r_class, Monitor.m_trace) and severity != Monitor.m_trace else ""
         if self.enabled(r_class, severity) is True:
             timestamp = f"{self.timeStamp():8.2f}"
-            space = " "
-            console_message = f"{timestamp} {r_class:15}: {severityText:8} {message}"
+            console_message = f"{timestamp} {r_class:15}: {severityText:8} {trace_pad}{message}"
             # wrapped_text = textwrap.wrap(console_message, width=120, initial_indent='', subsequent_indent=f"{space:35}")
             # for line in wrapped_text:
             print(console_message)
@@ -330,16 +355,14 @@ class Monitor(object):
                     print(f"{space:20} line")
         # always print everything to log
         timestamp = f"{self.timeStamp():14.6f}"
-        self.ofile.write(f"{timestamp} {r_class:15} {id(caller):8x}: {severityText:8} {message}\n")
+        self.ofile.write(f"{timestamp} {r_class:15} {id(caller):8x}: {severityText:8} {trace_pad}{message}\n")
     
     # Just output the timestamp and the message
     def writeTimestampWithMessage(self, message):
         timestamp = f"{self.timeStamp():8.2f}"
         print(f"{timestamp} : {message}")
         timestamp = f"{self.timeStamp():8.6f}"
-        self.open()
         self.ofile.write(f"{timestamp} : {message}")
-        self.flush()
 
     def timeStamp(self):
         timeElapsed = time.time() - Monitor.start_time
@@ -365,6 +388,8 @@ class Monitor(object):
         r_class=caller.__class__.__name__
         if self.enabled(r_class,Monitor.m_err) is True:        
             self.writeTimestampWithMessage(f"Profile Error: {r_class} : {text}")
+            print(f"{self.timeStamp()} Profile Error: {r_class} : {text}")
+            Monitor.ofile.write (" ERROR: " + self.pretty_inst(caller)+ ":  " + text + "\n")
         if Monitor.manager is False:
             all_text=r_class +'\n'+text
             PPDialog(Monitor.app,Monitor.develop_window,None,ok=True,finish=102,text=all_text,title='Profile Error')
@@ -402,13 +427,10 @@ class Monitor(object):
         r_class=caller.__class__.__name__
         r_class = type(caller).__name__
         r_func = sys._getframe(1).f_code.co_name
+        r_func = (r_func[:23] + '..') if len(r_func) > 25 else r_func
         r_line =  str(sys._getframe(1).f_lineno)
-        r_id = 'id='+str(id(caller))
-        r_longid = caller
         # self.print_info(r_class,Monitor.m_trace)
-        if self.enabled(r_class,Monitor.m_trace) is True:
-            print(self.pretty_inst(caller)+'/'+r_func, text)
-            Monitor.ofile.write ( self.pretty_inst(caller)+" /" + r_func +" " + text+"\n")
+        self.write(caller, Monitor.m_trace, "TRACE", f"{r_line:>4}:{r_func:25} {text}")
 
     def print_info(self,r_class,mask):
         print('called from', r_class)
@@ -431,7 +453,7 @@ class Monitor(object):
         if inst is None:
             return 'None'
         else:
-            return inst.__class__.__name__ + '_' + str(id(inst))
+            return f"{inst.__class__.__name__}_{id(inst):8x}"
   
     def finish(self):
         Monitor.ofile.close()

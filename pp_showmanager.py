@@ -173,6 +173,7 @@ class ShowManager(object):
         if show_obj is not None:
             self.mon.log(self,"Exiting show "+ show_ref + ' show index:' + str(index))
             show_obj.exit()
+        self.mon.info(self, f"------- Ending show '{show_ref}'")
         return 'normal','exited a concurrent show'
             
 
@@ -182,6 +183,7 @@ class ShowManager(object):
             return 'error',"Show not found in showlist: "+ show_ref
         show_index = self.showlist.index_of_show(show_ref)
         show=self.showlist.show(show_index)
+        self.mon.info(self, f"------- Starting show '{show_ref}': index={show_index}, registered:{index}")
         reason,message,show_canvas=self.compute_show_canvas(show)
         if reason == 'error':
             return reason,message
@@ -204,6 +206,9 @@ class ShowManager(object):
  
     # used by shows to create subshows or child shows
     def init_subshow(self,show_id,show,show_canvas):
+        show_ref = show['show-ref']
+        show_index = self.showlist.index_of_show(show_ref)
+        self.mon.info(self, f"--------- Initializing subshow: '{show_ref}' index={show_index}, show_id:{show_id}")
         return self.init_show(show_id,show,show_canvas)
 
 

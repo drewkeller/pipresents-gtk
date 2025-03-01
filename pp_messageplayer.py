@@ -122,7 +122,7 @@ class MessagePlayer(Player):
     def unload(self):
         self.mon.trace(self,'')
         # nothing to do for Messageplayer
-        self.mon.log(self,">unload received from show Id: "+ str(self.show_id))
+        self.mon.log(self, self.logMessage(f"unload received from show Id: {self.show_id}"))
         self.play_state='unloaded'
      
             
@@ -152,7 +152,7 @@ class MessagePlayer(Player):
     def close(self,closed_callback):
         self.mon.trace(self,'')
         self.closed_callback=closed_callback
-        self.mon.log(self,">close received from show Id: "+ str(self.show_id))
+        self.mon.log(self, self.logMessage(f"close received from show Id: {self.show_id}"))
         if self.tick_timer!= None:
             GLib.source_remove(self.tick_timer)
         self.play_state='closed'
@@ -184,7 +184,7 @@ class MessagePlayer(Player):
         GLib.source_remove(self.tick_timer)
         self.tick_timer=None
         if self.quit_signal  is   True:
-            self.mon.log(self,"quit received")
+            self.mon.log(self, self.logMessage("quit received"))
             if self.finished_callback is not None:
                 self.finished_callback('pause_at_end','user quit or duration exceeded')
                 # use finish so that the show will call close
@@ -277,13 +277,13 @@ class MessagePlayer(Player):
 
     def show_track_content(self):
         #print ('showing message')
-        self.mon.log(self,">show received from show Id: "+ str(self.show_id))
+        self.mon.log(self, self.logMessage(f"show received from show Id: {self.show_id}"))
         if self.track_object!=None:
             self.track_object.set_visible(True)
 
 
     def hide_track_content(self):
-        self.mon.log(self,">hide received from show Id: "+ str(self.show_id))
+        self.mon.log(self,self.logMessage(f"hide received from show Id: {self.show_id}"))
         if self.track_object!= None:
             self.track_object.set_visible(False)
             self.canvas.remove(self.track_object)

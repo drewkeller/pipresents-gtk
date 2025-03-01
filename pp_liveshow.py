@@ -47,13 +47,14 @@ class LiveShow(GapShow):
         # wait for usb stick to be mounted  when testing existence
         found=False
         for i in range (1, 10):
-            self.mon.log(self,"Trying live tracks directory 1 at: " + self.pp_live_dir1)
+            self.mon.log(self, self.logMessage(f"Trying live tracks directory 1 at: {self.pp_live_dir1}"))
             if os.path.exists(self.pp_live_dir1):
                 found=True
                 break
             time.sleep (1)
         if found is True:
-            self.mon.log(self,"Found Requested live tracks Directory 1,  at: " + self.pp_live_dir1)
+            self.mon.log(self, self.logMessage(f"Found Requested live tracks Directory 1,  at: {self.pp_live_dir1}"))
+            pass
         else:
             self.mon.warn(self,"Failed to find live tracks Directory 1"+ self.pp_live_dir1)
             # self.end('error','Failed to find live tracks dir 1')
@@ -70,13 +71,14 @@ class LiveShow(GapShow):
         if self.pp_live_dir2 !='':
             found=False
             for i in range (1, 10):
-                self.mon.log(self,"Trying live tracks directory 2 at: " + self.pp_live_dir2)
+                self.mon.log(self, self.logMessage(f"Trying live tracks directory 2 at: {self.pp_live_dir2}"))
                 if os.path.exists(self.pp_live_dir2):
                     found=True
                     break
                 time.sleep (1)
             if found is True:
-                self.mon.log(self,"Found Requested live tracks Directory 2,  at: " + self.pp_live_dir2)
+                self.mon.log(self, self.logMessage(f"Found Requested live tracks Directory 2,  at: {self.pp_live_dir2}"))
+                pass
             else:
                 self.mon.warn(self,"Failed to find live tracks Directory 2"+ self.pp_live_dir2)
                 # self.end('error','Failed to find live tracks dir 2')

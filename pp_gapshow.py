@@ -75,10 +75,9 @@ class GapShow(Show):
         self.enable_hint= True
         self.escapetrack_required=False
         
-
     def play(self,end_callback,show_ready_callback, parent_kickback_signal,level,controls_list):
         self.mon.newline(3)
-        self.mon.trace(self, self.show_params['show-ref'])
+        self.mon.trace(self, self.logMessage())
              
         Show.base_play(self,end_callback,show_ready_callback,parent_kickback_signal, level,controls_list)
 
@@ -135,6 +134,7 @@ class GapShow(Show):
         Show.base_handle_input_event(self,symbol)
 
     def handle_input_event_this_show(self,symbol):
+        self.mon.trace(self, self.logMessage())
 
         # show control on event
         self.handle_show_control_event(symbol,self.show_control_controls)
@@ -170,7 +170,7 @@ class GapShow(Show):
     # service the standard operations for this show
     def do_operation(self,operation):
         # print 'do_operation ',operation
-        self.mon.trace(self, operation)
+        self.mon.trace(self, self.logMessage(f"operation = '{operation}'"))
         if operation == 'exit':
             self.exit()
             
@@ -226,11 +226,13 @@ class GapShow(Show):
                 self.current_player.input_pressed(operation)
 
     def trigger_next(self):
+        self.mon.trace(self, self.logMessage())
         self.next_track_signal=True
         Show.delete_admin_message(self)
         self.what_next_after_showing()
 
     def do_next(self):
+        self.mon.trace(self, self.logMessage())
         # stop track if running and set signal
         self.next_track_signal=True
         if self.shower is not None:
@@ -240,6 +242,7 @@ class GapShow(Show):
                 self.current_player.input_pressed('stop')
 
     def repeat(self):
+        self.mon.trace(self, self.logMessage())
         # stop track if running and set signal
         self.repeat_track_signal=True
         if self.shower is not None:
@@ -249,6 +252,7 @@ class GapShow(Show):
                 self.current_player.input_pressed('stop')
 
     def previous(self):
+        self.mon.trace(self, self.logMessage())
         self.previous_track_signal=True
         if self.shower is not None:
             self.shower.do_operation('stop')
@@ -262,6 +266,7 @@ class GapShow(Show):
 # ***************************
 
     def start_show(self):
+        self.mon.trace(self, self.logMessage())
         # initial direction from parent show
         
         self.kickback_for_next_track=self.parent_kickback_signal
@@ -283,7 +288,7 @@ class GapShow(Show):
         # wait for trigger sets the state to waiting so that trigger events can do a start_list.
         self.state='waiting'
 
-        self.mon.log(self,self.show_params['show-ref']+ ' '+ str(self.show_id)+ ": Waiting for trigger: "+ self.show_params['trigger-start-type'])
+        self.mon.log(self, self.logMessage(f"Waiting for trigger: {self.show_params['trigger-start-type']}"))
 
   
         if self.show_params['trigger-start-type'] == "input":
@@ -353,6 +358,7 @@ class GapShow(Show):
 
     # track playing loop starts here
     def start_load_show_loop(self,selected_track):
+        self.mon.trace(self, self.logMessage())
 
         # uncomment the next line to write stats for every track
         # Show.write_stats(self,'play a track',self.show_params,selected_track)
@@ -379,7 +385,8 @@ class GapShow(Show):
 
     # track has loaded so show it.
     def what_next_after_load(self,status,message):
-        self.mon.log(self,'Show Id ' + str(self.show_id)+' load complete with status: ' + status +'  message: ' +message)
+        self.mon.trace(self, self.logMessage())
+        self.mon.log(self, self.logMessage(f"load complete with status: '{status}'  message: {message}"))
         if self.current_player.play_state == 'load-failed':
             self.error_signal=True
             self.what_next_after_showing()
@@ -400,7 +407,7 @@ class GapShow(Show):
             self.req_next='finished-player'
         # showing has finished with 'pause at end', showing the next track will close it after next has started showing
         self.mon.trace(self, ' - pause at end ')
-        self.mon.log(self,"pause at end of showing track with reason: "+reason+ ' and message: '+ message)
+        self.mon.log(self,self.logMessage(f"pause at end of showing track with reason: '{reason}' and message: '{message}'"))
         self.what_next_after_showing()
 
 
@@ -413,13 +420,13 @@ class GapShow(Show):
             self.req_next='closed-player'
         # showing has finished with closing of player but track instance is alive for hiding the x_content
         self.mon.trace(self,' - closed')
-        self.mon.log(self,"Closed after showing track with reason: "+reason+ ' and message: '+ message)
+        self.mon.log(self,self.logMessage(f"Closed after showing track with reason: '{reason}' and message: '{message}'"))
         self.what_next_after_showing()
 
         
     # subshow or child show has ended
     def end_shower(self,show_id,reason,message):
-        self.mon.log(self,self.show_params['show-ref']+ ' '+ str(self.show_id)+ ': Returned from shower with ' + reason +' ' + message)
+        self.mon.trace(self, self.logMessage(f"Returned from shower with reason='{reason}', message={message}"))
         self.sr.hide_click_areas(self.controls_list,self.canvas)
         self.req_next=reason
         Show.base_end_shower(self)
@@ -439,6 +446,7 @@ class GapShow(Show):
         
 
     def what_next_after_showing(self):
+        show_ref = self.show_params['show-ref']
         if self.poll_for_interval_timer!=None:
             GLib.source_remove(self.poll_for_interval_timer)
             self.poll_for_interval_timer=None
@@ -496,6 +504,7 @@ class GapShow(Show):
        # interval > 0. If last track has finished we are waiting for interval timer before ending the list
        # note: if medialist finishes after interval is up then this route is used to start trigger. 
         elif self.waiting_for_interval is True:
+            self.mon.info(self, self.logMessage("waiting_for_interval"))
             # interval_timer_signal set by alarm clock started in start_list
             if self.interval_timer_signal is True:
                 self.interval_timer_signal=False
@@ -511,6 +520,7 @@ class GapShow(Show):
                 self.poll_for_interval_timer=GLib.timeout_add(1000,self.what_next_after_showing)
 
         else:
+            #self.mon.info(self, self.logMessage("create_new_livelist"))
             self.medialist.create_new_livelist(self.show_params['sequence'])
             escapetrack_required=self.escapetrack_required
             self.escapetrack_required=False
@@ -518,7 +528,7 @@ class GapShow(Show):
             if escapetrack_required is True and self.medialist.new_length() == 0:
                 # print 'use escape track'
                 index = self.medialist.index_of_track(self.show_params['escape-track-ref'])
-                self.mon.log(self,'Starting Escape Track: '+ self.show_params['escape-track-ref'])
+                self.mon.log(self,self.logMessage(f"Starting Escape Track: {self.show_params['escape-track-ref']}"))
                 if index >=0:
                     # don't use select the track as need to preserve mediashow sequence for returning from esacpe track
                     escape_track=self.medialist.track(index)
@@ -551,7 +561,7 @@ class GapShow(Show):
                 if self.medialist.new_length()==0 and self.show_params['repeat']=='repeat':
                     # start empty track/show
                     index = self.medialist.index_of_track(self.show_params['empty-track-ref'])
-                    self.mon.log(self,'Starting Empty Track: '+ self.show_params['empty-track-ref'])
+                    self.mon.log(self, self.logMessage(f"Starting Empty Track: {self.show_params['empty-track-ref']}"))
                     if index >=0:
                         # don't use select the track as need to preserve mediashow sequence for returning from empty track/show
                         empty_track=self.medialist.track(index)
@@ -565,7 +575,7 @@ class GapShow(Show):
                         self.medialist.use_new_livelist()
                         self.start_load_show_loop(empty_track)
                     else:
-                        self.mon.err(self,"List Empty Track not specified")
+                        self.mon.err(self, self.logMessage("List Empty Track not specified"))
                         self.end('error',"List Empty Track not specified")
   
 
@@ -589,9 +599,11 @@ class GapShow(Show):
 
             # otherwise consider operation that might show the next track          
             else:
+                #self.mon.info(self, self.logMessage("check operations that might show next track"))
                 # print 'ELSE',self.medialist.at_end()
                 # report error if medilaist is empty (liveshow will not get this far
                 if self.medialist.length()==0:
+                    #self.mon.info(self, self.logMessage("   - medialist empty"))
                     self.mon.err(self,"Medialist empty")
                     self.end('error',"Medialist empty")
                     
@@ -603,18 +615,23 @@ class GapShow(Show):
                     self.end_trigger_signal=False
                     # repeat so test start trigger
                     if self.show_params['repeat'] == 'repeat':
+                        if self.show_params['show-ref'] == "main":
+                            self.mon.info(self, self.logMessage("   - repeating, wait for trigger"))
+
                         self.stop_timers()
                         # print 'END TRIGGER restart'
                         self.wait_for_trigger()
                     else:
                         # single run so exit show
                         if self.level != 0:
+                            #self.mon.info(self, self.logMessage("   - single-run, return from subshow"))
                             self.kickback_for_next_track=False
                             self.subshow_kickback_signal=False
                             # print 'single run exit subshow'
                             self.end('normal',"End of single run - Return from Sub Show")
                         else:
                             # end of single run and at top - exit the show
+                            #self.mon.info(self, self.logMessage("   - single-run and at top, exit now"))
                             self.stop_timers()
                             # print 'ENDING'
                             self.ending_reason='user-stop'
@@ -637,11 +654,13 @@ class GapShow(Show):
                         Show.base_close_or_unload(self)
 
                 elif self.repeat_track_signal is True:
+                    self.mon.info(self, self.logMessage("repeat_track_signal"))
                     self.repeat_track_signal=False
                     self.start_load_show_loop(self.medialist.selected_track())
 
                 # skip to next track on user input or after subshow
                 elif self.next_track_signal is True:
+                    self.mon.info(self, self.logMessage("next_track_signal"))
                     # print 'skip forward test' ,self.subshow_kickback_signal
                     if self.next_track_signal is True or self.subshow_kickback_signal is False:
                         self.next_track_signal=False
@@ -674,6 +693,7 @@ class GapShow(Show):
 
                 # skip to previous track on user input or after subshow
                 elif self.previous_track_signal is True or self.subshow_kickback_signal is True:
+                    self.mon.info(self, self.logMessage("previous_track_signal"))
                     # print 'skip backward test, subshow kickback is' ,self.subshow_kickback_signal
                     self.subshow_kickback_signal=False
                     self.previous_track_signal=False
@@ -681,6 +701,7 @@ class GapShow(Show):
                     # medialist_at_start can give false positive for shuffle
                     if self.medialist.at_start() is True:
                         # print 'AT START'
+                        self.mon.log(self, self.logMessage("what-next 691"))
                         if  self.show_params['sequence'] in ( "ordered",'reverse') and self.show_params['repeat'] == 'repeat':
                             self.kickback_for_next_track=True
                             self.wait_for_trigger()
@@ -702,6 +723,7 @@ class GapShow(Show):
                             self.start_load_show_loop(self.medialist.selected_track())               
                     else:
                         # not at end just do next track
+                        self.mon.log(self, self.logMessage("what-next 713"))
                         self.medialist.previous(self.show_params['sequence'])              
                         self.start_load_show_loop(self.medialist.selected_track())
 
@@ -710,6 +732,7 @@ class GapShow(Show):
 
                 # AT END OF MEDIALIST
                 elif self.medialist.at_end() is True:
+                    #self.mon.info(self, self.logMessage("medialist.at_end"))
                     # print 'MEDIALIST AT END'
 
                     # interval>0 and list finished so wait for the interval timer
@@ -727,11 +750,13 @@ class GapShow(Show):
 
                     # shuffling so there is no end condition, get out of end test
                     elif self.show_params['sequence'] == "shuffle":
+                        #self.mon.info(self, self.logMessage("shuffled show"))
                         self.medialist.next(self.show_params['sequence'])
                         self.start_load_show_loop(self.medialist.selected_track())
                         
                     # nothing special to do at end of list, just repeat or exit
                     elif self.show_params['sequence'] in ("ordered",'reverse'):
+                        #self.mon.info(self, self.logMessage("ordered or reverse show"))
                         if self.show_params['repeat'] == 'repeat':
                             # print 'repeating at end of list'
                             self.wait_for_trigger()
@@ -814,7 +839,7 @@ class GapShow(Show):
 # End the show
 # *********************
     def end(self,reason,message):
-        self.mon.log(self,"Ending gapshow: "+ self.show_params['show-ref'])
+        self.mon.trace(self, self.logMessage("Ending gapshow"))
         Show.base_end(self,reason,message)
 
 

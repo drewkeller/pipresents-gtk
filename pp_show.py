@@ -123,8 +123,8 @@ class Show(object):
         self.level=level
         # not needed as controls list is not passed down to subshows.
         # self.controls_list=controls_list
-        self.mon.trace(self,self.show_params['show-ref'] + ' at level ' + str(self.level))
-        self.mon.log(self,self.show_params['show-ref']+ ' '+ str(self.show_id)+ ": Starting show")
+        self.mon.trace(self, self.logMessage(f"at level {self.level}"))
+        self.mon.info(self, self.logMessage(f"Starting show"))
         # check  data files are available.
         if self.show_params['medialist'] == '':
             self.mon.err(self,"Blank Medialist in: "+ self.show_params['title'])
@@ -234,7 +234,7 @@ class Show(object):
                     self.shower.play(end_shower_callback,self.subshow_ready_callback,self.kickback_for_next_track,self.level+1,[])
         else:
             # dispatch track by type
-            self.mon.log(self,self.show_params['show-ref']+ ' '+ str(self.show_id)+ ": Track type is: "+ track_type)
+            self.mon.log(self, self.logMessage(f"Track type is: {track_type}"))
             self.current_player=self.base_init_selected_player(selected_track)
             if self.leak is True:
                 print('\ninit current player ',self.current_player.track_params['title'])
@@ -265,7 +265,7 @@ class Show(object):
     def base_init_selected_player(self,selected_track):
         # dispatch track by type
         track_type=selected_track['type']
-        self.mon.log(self,"Track type is: "+ track_type)
+        self.mon.log(self, self.logMessage(f"Track type is: {track_type}"))
                                       
         if track_type == "image":
             return ImagePlayer(self.show_id,self.showlist,self.root,self.show_canvas,
@@ -392,6 +392,7 @@ class Show(object):
 
     # close or unload the current player when ending the show
     def base_close_or_unload(self):
+        self.mon.info(self, self.logMessage(f"--------- Close/unload: '{self.show_params['show-ref']}'"))
         if self.leak is True:
             print('IN ',self.show_params['title'])
         self.mon.trace(self,self.mon.pretty_inst(self.current_player))
@@ -516,7 +517,7 @@ class Show(object):
             self.show_control(self.show_params['show-control-end'])
         
         self.mon.trace(self,' at level ' + str(self.level) + '\n - Current is ' + self.mon.pretty_inst(self.current_player) + '\n - Previous is ' + self.mon.pretty_inst(self.previous_player) + '\n with reason' + reason + '\n\n')
-        self.mon.log(self,self.show_params['show-ref']+ ' Show Id: '+ str(self.show_id)+ ": Ending Show")
+        self.mon.log(self, self.logMessage(f"Ending Show"))
         self.end_callback(self.show_id,reason,message)
         self=None
 
@@ -580,7 +581,7 @@ class Show(object):
 
     # exit received from external source
     def base_exit(self):
-        self.mon.log(self,self.show_params['show-ref']+ ' '+ str(self.show_id)+ ": Exit received")
+        self.mon.log(self, self.logMessage("Exit received"))
         self.mon.trace(self,'')
         # set signal to exit the show when all  sub-shows and players have ended
         self.exit_signal=True
@@ -638,7 +639,7 @@ class Show(object):
 
   # respond to input events
     def base_handle_input_event(self,symbol):
-        self.mon.log(self, self.show_params['show-ref']+ ' Show Id: '+ str(self.show_id)+": received input event: " + symbol)
+        self.mon.log(self, self.logMessage(f"received input event: {symbol}"))
         if self.shower is not None:
             self.shower.handle_input_event(symbol)
         else:
@@ -866,7 +867,7 @@ class Show(object):
             track_file=self.pp_home+track_file[1:]
         elif track_file != '' and track_file[0] == "@":
             track_file=self.pp_profile+track_file[1:]
-        self.mon.log(self,"Track to load is: "+ track_file)
+        self.mon.log(self, self.logMessage(f"Track to load is: {track_file}"))
         return track_file     
   
 

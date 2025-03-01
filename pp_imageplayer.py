@@ -108,7 +108,7 @@ class ImagePlayer(Player):
         self.track=track
         # print 'imageplayer load',self.track
         self.loaded_callback=loaded_callback   # callback when loaded
-        self.mon.trace(self,'')
+        self.mon.trace(self, self.logMessage(f"Loading {self.track}"))
 
 
         Player.pre_load(self)
@@ -155,9 +155,9 @@ class ImagePlayer(Player):
             
     # UNLOAD - abort a load when sub-process is loading or loaded
     def unload(self):
-        self.mon.trace(self,'')        
+        self.mon.trace(self, self.logMessage("Unload"))
         # nothing to do for imageplayer
-        self.mon.log(self,">unload received from show Id: "+ str(self.show_id))
+        self.mon.log(self, self.logMessage(f"unload received from show_id {self.show_id}"))
         self.play_state='unloaded'
      
             
@@ -171,6 +171,7 @@ class ImagePlayer(Player):
         self.closed_callback=closed_callback            # callback when closed - not used by imageplayer
 
         self.mon.trace(self,'')
+        self.mon.info(self, self.logMessage(f"showing track {self.track}"))
         
         # init state and signals  
         self.tick = 100 # tick time for image display (milliseconds)
@@ -191,7 +192,7 @@ class ImagePlayer(Player):
     def close(self,closed_callback):
         self.mon.trace(self,'')
         self.closed_callback=closed_callback
-        self.mon.log(self,">close received from show Id: "+ str(self.show_id))
+        self.mon.log(self, self.logMessage(f"close received from show_id {self.show_id}"))
         if self.tick_timer!= None:
             GLib.source_remove(self.tick_timer)
             self.tick_timer=None
@@ -275,9 +276,9 @@ class ImagePlayer(Player):
             GLib.source_remove(self.tick_timer)
             self.tick_timer=None
         if self.quit_signal is  True:
-            self.mon.log(self,"quit received")
+            self.mon.log(self, self.logMessage("quit received"))
             if self.finished_callback is not None:
-                self.mon.log(self,'pause_at_end, user quit or duration exceeded')
+                self.mon.log(self, self.logMessage('pause_at_end, user quit or duration exceeded'))
                 self.finished_callback('pause_at_end','user quit or duration exceeded')
                 # use finish so that the show will call close
         else:
@@ -306,7 +307,7 @@ class ImagePlayer(Player):
 
             if self.dwell != 0 and self.dwell_counter == self.dwell:
                 if self.finished_callback is not None:
-                    self.mon.log(self,'pause_at_end, user quit or duration exceeded')
+                    self.mon.log(self, self.logMessage('pause_at_end, user quit or duration exceeded'))
                     self.finished_callback('pause_at_end','user quit or duration exceeded')
                     # use finish so that the show will call close
             else:

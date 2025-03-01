@@ -135,7 +135,7 @@ class Player():
 
     # common bits of show(....)
     def pre_show(self):
-        self.mon.trace(self,'')
+        self.mon.trace(self, self.logMessage())
 
         # show_x_content moved to just before ready_callback to improve flicker.
         self.show_x_content()
@@ -155,31 +155,31 @@ class Player():
         # create animation events
         reason,message=self.animate.animate(self.animate_begin_text,id(self))
         if reason  ==  'error':
-            self.mon.err(self,message)
+            self.mon.err(self, self.logMessage(message))
             self.play_state='show-failed'
             if self.finished_callback is not None:
                 self.finished_callback('error',message)
         else:
             # return to start playing the track.
-            self.mon.log(self,">show track received from show Id: "+ str(self.show_id))
+            self.mon.log(self, self.logMessage(f"show track received from show Id: {self.show_id}"))
             return
 
 
     # to keep pylint happy
     def ready_callback(self,enable_show_background):
-        self.mon.fatal(self,'ready callback not overridden')
+        self.mon.fatal(self, self.logMessage('ready callback not overridden'))
         self.end('error','ready callback not overridden')
 
     def finished_callback(self,reason,message):
         reasonx=reason
         messagex=message
-        self.mon.fatal(self,'finished callback not overridden')
+        self.mon.fatal(self, self.logMessage('finished callback not overridden'))
         self.end('error','finished callback not overridden')
 
     def closed_callback(self,reason,message):
         reasonx=reason
         messagex=message
-        self.mon.fatal(self,'closed callback not overridden')
+        self.mon.fatal(self, self.logMessage('closed callback not overridden'))
         self.end('error','closed callback not overridden')
 
 
@@ -200,7 +200,7 @@ class Player():
 # *****************
 
     def hide(self):
-        self.mon.trace(self,'')
+        self.mon.trace(self, self.logMessage())
         #gtkdo this sems to be a duplicte of messagplayer
         # abort the timer
         #if self.tick_timer is not None:
@@ -223,7 +223,7 @@ class Player():
         # !!!!! TEMPORARY FIX
         reason,message=self.animate.animate(self.animate_end_text,id(self))
         if reason == 'error':
-            self.mon.err(self,message)
+            self.mon.err(self, self.logMessage(message))
             # self.play_state='show-failed'
             # if self.finished_callback is not None:
                 # self.finished_callback('error',message)
@@ -232,7 +232,7 @@ class Player():
 
 
     def terminate(self):
-        self.mon.trace(self,'')
+        self.mon.trace(self, self.logMessage())
         self.terminate_signal=True
         if self.play_state == 'showing':
             # call the derived class's stop method
@@ -242,7 +242,7 @@ class Player():
 
     # must be overriden by derived class
     def stop(self):
-        self.mon.fatal(self,'stop not overidden by derived class')
+        self.mon.fatal(self, self.logMessage('stop not overidden by derived class'))
         self.play_state='show-failed'
         if self.finished_callback is not None:
             self.finished_callback('error','stop not overidden by derived class')
@@ -256,7 +256,7 @@ class Player():
 # *****************
 #gtkdo
     def end(self,reason,message):
-        self.mon.trace(self,'')
+        self.mon.trace(self, self.logMessage())
         # stop the plugin
         print ('END???? def end in pp_player')
         if self.terminate_signal is True:
@@ -289,7 +289,7 @@ class Player():
             self.pim.stop_plugin()
 
     def load_x_content(self,enable_menu):
-        self.mon.trace(self,'')
+        self.mon.trace(self, self.logMessage())
         self.background_obj=None
         self.background=None
         self.track_text_obj=None
@@ -529,7 +529,7 @@ class Player():
         pass
 
     def show_x_content(self):
-        self.mon.trace(self,'')
+        self.mon.trace(self, self.logMessage())
         #print ('show x content')
 
         # background colour
@@ -556,7 +556,7 @@ class Player():
 
 
     def hide_x_content(self):
-        self.mon.trace(self,'')
+        self.mon.trace(self, self.logMessage())
         self.hide_track_content()
         if self.background_obj!=None:
             self.background_obj.set_visible(False)

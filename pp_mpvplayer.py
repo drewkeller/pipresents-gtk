@@ -340,6 +340,7 @@ class MPVPlayer(Player):
         self.finished_callback=finished_callback         # callback when finished showing
         self.closed_callback=closed_callback
 
+        self.mon.info(self, self.logMessage(f"showing track {self.track}"))
         self.mon.trace(self,'')
 
         #  do animation at start and ready_callback which closes+hides the previous track

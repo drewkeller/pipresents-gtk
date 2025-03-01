@@ -153,10 +153,10 @@ class PiPresents(object):
 
         self.mon.log(self,'Display Manager: '+os.environ['XDG_SESSION_TYPE'])
 
-        if "DESKTOP_SESSION" not in os.environ:
-            self.error_exit(self,'Pi Presents must be run from the Desktop')
-        else:
-            self.mon.log(self,'Desktop is '+ os.environ['DESKTOP_SESSION'])
+        #if "DESKTOP_SESSION" not in os.environ:
+        #    self.error_exit(self,'Pi Presents must be run from the Desktop')
+        #else:
+        #    self.mon.log(self,'Desktop is '+ os.environ['DESKTOP_SESSION'])
 
         # optional other classes used
         self.root=None

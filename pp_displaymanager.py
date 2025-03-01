@@ -111,7 +111,7 @@ class DisplayManager(object):
         self.backlight=None
         
         dm=os.environ['XDG_SESSION_TYPE']
-        if dm=='wayland':
+        if dm=='wayland' or dm == 'tty':
             DisplayManager.display_map = DisplayManager.wayland_display_map
             DisplayManager.display_reverse_map = DisplayManager.wayland_display_reverse_map
         elif dm=='x11':

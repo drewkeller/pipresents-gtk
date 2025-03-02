@@ -436,7 +436,7 @@ class MPVPlayer(Player):
             self.tick_timer=None
         if self.unload_signal is True:
             self.unload_signal=False
-            self.state='unloading'
+            self.play_state='unloading'
             self.mpvdriver.unload()
             GLib.timeout_add(100,self.load_state_machine)
             return False

@@ -8,6 +8,12 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk,Gdk,GLib
 from trin94 import MyRenderer
 from pp_gtkutils import CSS
+
+import pexpect
+import signal
+from threading import Thread
+from time import sleep
+
 """
 pp_mpvdriver.py
 
@@ -74,6 +80,10 @@ class MPVDriver(object):
         self.show_status_timer=None
         self.load_status_timer=None
         self.css=CSS()
+
+        self._process = None
+        self.is_paused = False
+        self.load_timeout = 500
       
     def logMessage(self, message = ""):
         return f"> state:{self.state:10} {message}"
@@ -93,10 +103,62 @@ class MPVDriver(object):
         #video
         self.has_video=self.file_has_video(self.track)
         #print (self.has_video)
-        self.rend = MyRenderer()
-        self.rend.connect("realize", self.on_renderer_ready)
-        self.rend.set_size_request(self.width,self.height)
-        self.canvas.put(self.rend,x,y)
+        # self.rend = MyRenderer()
+        # self.rend.connect("realize", self.on_renderer_ready)
+        # self.rend.set_size_request(self.width,self.height)
+        # self.canvas.put(self.rend,x,y)
+        self.pexpect_load(track)
+
+    def pexpect_load(self, track):
+        cmd = f"/usr/bin/mpv {track}"
+        self.mon.log(self, self.logMessage("Sent command: {cmd"))
+        self._process = pexpect.spawn(cmd)
+        self.pexpect_pause()
+        #self.load_complete_signal=True
+        self.pexpect_watcher_thred = Thread(target=self.pexpect_watch)
+        self.pexpect_watcher_thred.start()
+        self.load_status_timer=GLib.timeout_add(1,self.load_status_loop)
+
+    def pexpect_watch(self):
+        self.load_property_change('time-pos', 0)
+        self._process.send('f') # fullscreen (player misses this message about 10% of the time)
+        ready_called = False
+        while True:
+            if not self._process.isalive():
+                self.show_complete_change('time-pos', self.duration)
+                break
+            if self.state in ('load-loading') and not ready_called:
+                ready_called = True
+                self.on_renderer_ready()                
+
+            if self.state in ('load-ok', 'load-frozen', 'load-fail', 'load-unloaded'):
+                self.load_status_timer=GLib.timeout_add(1,self.show_status_loop)
+            
+            if self.state in ('show-pauseatend', 'show-niceday'):
+                break
+
+            if self.quit_show_signal:
+                break
+            sleep(0.05)
+
+
+    def pexpect_play(self):
+        if self._process and self.is_paused:
+            self._process.send('p')
+        self.is_paused = False
+
+    def pexpect_pause(self):
+        if self._process != None and not self.is_paused:
+            self._process.send('p')
+        self.is_paused = True
+
+    def pexpect_stop(self):
+        if self._process:
+            self._process.send('q')
+
+    def pexpect_kill(self):
+        if self._process:
+            self._process.kill(signal.SIGINT)
 
     def file_has_video(self,path):
         self.mon.trace(self, self.logMessage())
@@ -110,15 +172,15 @@ class MPVDriver(object):
 
     def on_renderer_ready(self, *_):
         self.mon.trace(self, self.logMessage())
-        self.player=self.rend.get_player()
-        status,message=self.apply_options(self.options)
-        if status == 'error':
-            print(message)
-        self.rend.set_visible(False)
-        self.rend.play(self.track)
-        #print('ready',self.player.width,self.player.dwidth,self.player.height,self.player.dheight)
-        self.player.observe_property('time-pos', self.load_property_change)
-        self.player.volume=0        
+        # self.player=self.rend.get_player()
+        # status,message=self.apply_options(self.options)
+        # if status == 'error':
+        #     print(message)
+        # self.rend.set_visible(False)
+        # self.rend.play(self.track)
+        # #print('ready',self.player.width,self.player.dwidth,self.player.height,self.player.dheight)
+        # self.player.observe_property('time-pos', self.load_property_change)
+        # self.player.volume=0        
         #need a timeout as sometimes a load will fail 
         self.load_timeout= 500    #5 seconds
         
@@ -129,11 +191,11 @@ class MPVDriver(object):
         self.mon.trace(self, self.logMessage(f"property change: {name}={value}"))
         #print (name,value)
         if name=='time-pos' and value is not None and value>=0:
-            self.rend.set_visible(False)
-            self.player.pause=True
-            self.player.unobserve_property('time-pos',self.load_property_change)
-            #print ('load complete at time-pos',value)
-            #print('complete',self.player.width,self.player.dwidth,self.player.height,self.player.dheight)
+            # self.rend.set_visible(False)
+            # self.player.pause=True
+            # self.player.unobserve_property('time-pos',self.load_property_change)
+            # #print ('load complete at time-pos',value)
+            # #print('complete',self.player.width,self.player.dwidth,self.player.height,self.player.dheight)
             self.load_complete_signal=True
             self.load_position=value
             return
@@ -141,11 +203,13 @@ class MPVDriver(object):
 
     def load_status_loop(self):
         self.mon.trace(self, self.logMessage())
-        GLib.source_remove(self.load_status_timer)
-        self.load_status_timer=None
+        if self.load_status_timer:
+            GLib.source_remove(self.load_status_timer)
+            self.load_status_timer=None
         if self.quit_load_signal is True:
             self.quit_load_signal=False
-            self.player.stop() 
+            # self.player.stop() 
+            self.pexpect_stop()
             self.state= 'load-unloaded'
             self.mon.log (self,'unloaded at: '+str(self.load_position))
             return
@@ -153,7 +217,8 @@ class MPVDriver(object):
         if self.load_complete_signal is True:
             #print ('load complete')
             self.load_complete_signal=False
-            self.duration=self.player.duration
+            # self.duration=self.player.duration
+            self.duration = 1.0
             self.frozen_at_start=True
             
             if self.freeze_at_start in ('before-first-frame','after-first-frame'):
@@ -163,8 +228,8 @@ class MPVDriver(object):
                 self.state='load-ok'
                 self.mon.log (self,'load-ok at: '+str(self.load_position))
                 
-            if self.freeze_at_start=='after-first-frame':
-                self.rend.set_visible(True)
+            # if self.freeze_at_start=='after-first-frame':
+            #     self.rend.set_visible(True)
             return
             
         self.load_timeout-=1
@@ -193,15 +258,16 @@ class MPVDriver(object):
             self.state='show-showing'
             #gtkdo
             #self.video_frame.config(height=self.height,width=self.width,bg=self.background_colour)
-            self.player.pause=False
-            if self.has_video is True:
-                self.rend.set_visible(True) 
+            # self.player.pause=False
+            # if self.has_video is True:
+            #     self.rend.set_visible(True) 
             self.set_volume(initial_volume)
             self.mon.log (self,'no freeze at start, start showing')
             self.show_complete_signal=False
-            self.player.observe_property('time-pos',self.show_complete_change)
+            # self.player.observe_property('time-pos',self.show_complete_change)
             self.frozen_at_start=False
             # print ('duration',self.duration)
+            self.pexpect_play()
             self.show_status_timer=GLib.timeout_add(1,self.show_status_loop)
         return
 
@@ -218,7 +284,7 @@ class MPVDriver(object):
             if (name=='time-pos'and value is None)or(name=='time-pos' and value>self.duration-0.12):
                 self.show_complete_signal=True
                 self.set_volume(0)
-                self.player.unobserve_property('time-pos',self.show_complete_change)
+                # self.player.unobserve_property('time-pos',self.show_complete_change)
                 self.show_position=value
                 #print('paused at end',value)
                 return
@@ -228,7 +294,7 @@ class MPVDriver(object):
                 self.show_complete_signal=True
                 self.set_volume(0)
                 self.show_position=value
-                self.player.unobserve_property('time-pos',self.show_complete_change)
+                # self.player.unobserve_property('time-pos',self.show_complete_change)
                 return
  
     def show_status_loop(self):
@@ -240,12 +306,14 @@ class MPVDriver(object):
             self.quit_show_signal= False
             if self.freeze_at_end == 'yes':
                 self.frozen_at_end=True
-                self.player.pause=True
+                # self.player.pause=True
+                self.pexpect_pause()
                 self.state='show-pauseatend'
                 self.mon.log(self,'stop caused pause '+self.state)
                 return
             else:
-                self.player.stop()
+                # self.player.stop()
+                self.pexpect_stop()
                 self.state='show-niceday'
                 self.mon.log(self,'stop caused no pause '+self.state)
                 return
@@ -253,7 +321,8 @@ class MPVDriver(object):
         if self.show_complete_signal is True:
             self.show_complete_signal=False
             if self.freeze_at_end == 'yes':
-                self.player.pause=True
+                # self.player.pause=True
+                self.pexpect_pause()
                 self.frozen_at_end=True
                 #print (self.show_position)
                 self.mon.log(self,'paused at end at: '+str(self.show_position))
@@ -263,9 +332,10 @@ class MPVDriver(object):
                 self.mon.log(self,'ended with no pause'+str(self.show_position))
                 self.state='show-niceday'
                 self.frozen_at_end=False
-                self.player.video=False
-                self.rend.set_visible(False)
-                self.player.stop()
+                # self.player.video=False
+                # self.rend.set_visible(False)
+                # self.player.stop()
+                self.pexpect_stop()
                 return
                 
         else:
@@ -277,10 +347,11 @@ class MPVDriver(object):
     def close(self):
         self.mon.trace(self, self.logMessage())
         #print ('in close')
-        self.player.video=False
-        #self.player.pause=False
-        self.player.stop()
-        self.rend.set_visible(False)
+        # self.player.video=False
+        # #self.player.pause=False
+        # self.player.stop()
+        # self.rend.set_visible(False)
+        self.pexpect_kill()
 
         #gtkdo terminate crashes with aborted
         #self.player.terminate()
@@ -305,11 +376,11 @@ class MPVDriver(object):
         if self.frozen_at_start is True:
             self.state='show-showing'
             self.mon.log (self,'freeze off, go ok')
-            self.player.pause=False
-            self.rend.set_visible(True)
+            # self.player.pause=False
+            # self.rend.set_visible(True)
             self.set_volume(initial_volume)
             self.show_complete_signal=False
-            self.player.observe_property('time-pos',self.show_complete_change)
+            # self.player.observe_property('time-pos',self.show_complete_change)
             self.show_status_timer=GLib.timeout_add(1,self.show_status_loop)
             self.frozen_at_start=False
             return 'go-ok'
@@ -321,13 +392,15 @@ class MPVDriver(object):
     def pause(self):
         if self.state== 'show-showing' and self.frozen_at_end is False and self.frozen_at_start is False:
             if self.user_pause is True:
-                self.player.pause=False
+                # self.player.pause=False
+                self.pexpect_play()
                 self.user_pause=False
                 self.mon.log (self,'pause to pause-off ok')
                 return 'pause-off-ok'
             else:
                 self.user_pause=True
-                self.player.pause=True
+                # self.player.pause=True
+                self.pexpect_pause
                 self.mon.log (self,'pause to pause-on ok')
                 return 'pause-on-ok'
         else:
@@ -338,7 +411,8 @@ class MPVDriver(object):
     def pause_on(self):
         if self.state== 'show-showing' and self.frozen_at_end is False and self.frozen_at_start is False:
             self.user_pause=True
-            self.player.pause=True
+            # self.player.pause=True
+            self.pexpect_pause()
             self.mon.log (self,'pause on ok')
             return 'pause-on-ok'
         else:
@@ -348,7 +422,8 @@ class MPVDriver(object):
                     
     def pause_off(self):
         if self.state== 'show-showing' and self.frozen_at_end is False and self.frozen_at_start is False:
-            self.player.pause=False
+            # self.player.pause=False
+            self.pexpect_play()
             self.user_pause=False
             self.mon.log (self,'pause off ok')
             return 'pause-off-ok'
@@ -357,7 +432,8 @@ class MPVDriver(object):
 
     def stop(self):
         if self.frozen_at_start is True:
-            self.player.stop()
+            # self.player.stop()
+            self.pexpect_stop()
             self.state='show-niceday'
             self.mon.log(self,'stop during frozen at start '+self.state)
             return
@@ -373,19 +449,23 @@ class MPVDriver(object):
             self.state='load-unloaded'
 
     def mute(self):
-        self.player.mute=True
+        # self.player.mute=True
+        pass
         
     def unmute(self):
-        self.player.mute=False
+        # self.player.mute=False
+        pass
                 
     def set_volume(self,volume):
-        self.player.volume=volume        
+        # self.player.volume=volume        
+        pass
 
     def set_device(self,device_id):
-        if device_id=='':
-            self.player.audio_output_device_set(None,None) 
-        else:           
-            self.player.audio_output_device_set(None,device_id)
+        # if device_id=='':
+        #     self.player.audio_output_device_set(None,None) 
+        # else:           
+        #     self.player.audio_output_device_set(None,device_id)
+        pass
 
 
 class PP(object):

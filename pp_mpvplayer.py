@@ -12,7 +12,6 @@ from pp_displaymanager import DisplayManager
 from pp_audiomanager import AudioManager
 from pp_gtkutils import CSS
 
-
 # NO display name
 # no layer
 # no 
@@ -160,9 +159,9 @@ class MPVPlayer(Player):
                 return status,message
             #print(self.mpv_audio,self.mpv_sink)
                     
-            if not self.am.sink_connected(self.mpv_sink):
-                self.mon.err(self,'"'+self.mpv_audio +'"audio device not connected\n\n    Expected sink is: '+ self.mpv_sink)
-                return 'error',self.mpv_audio +'audio device not connected'
+            #if not self.am.sink_connected(self.mpv_sink):
+            #    self.mon.err(self,'"'+self.mpv_audio +'"audio device not connected\n\n    Expected sink is: '+ self.mpv_sink)
+            #    #return 'error',self.mpv_audio +'audio device not connected'
                     
             self.add_option('ao','pulse')
         else:
@@ -561,7 +560,8 @@ class MPVPlayer(Player):
         elif self.play_state=='closing':
             self.play_state='closed'
             # state change needed for wait for end
-            self.mon.log(self,"      Entering state : " + self.play_state + ' from show Id: '+ str(self.show_id))
+            self.mon.log(self, self.logMessage(f"      Entering state : {self.play_state} from show Id: {self.show_id}"))
+            self.mpvdriver = None
             if self.closed_callback is not  None:
                 self.closed_callback('normal','mpvdriver closed')             
 

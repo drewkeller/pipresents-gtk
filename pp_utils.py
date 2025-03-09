@@ -284,6 +284,14 @@ class Monitor(object):
         
         Monitor.sr=Statsrecorder()
         Monitor.sr.init(Monitor.log_path)
+   
+    def init_log_file(self, log_file, do_append=False):
+        bufsize = -1
+        log_path = os.path.dirname(log_file)
+        if not os.path.exists(log_path):
+            print(f"Log folder does not exist: '{log_path}'")
+        write_type = 'a' if do_append else 'w'
+        self.ofile = open(log_file, write_type, bufsize)
 
     def mem(self, caller, message="", previous_rss=-1):
         process = psutil.Process()
@@ -328,9 +336,17 @@ class Monitor(object):
 
     # CONTROL
 
-    def __init__(self):
+    def __init__(self, global_log_level=0, class_log_level=None, log_file=None, do_append=False):
         # default value for individual class logging
-        self.this_class_level= Monitor.m_fatal|Monitor.m_err|Monitor.m_warn
+        Monitor.log_level = global_log_level
+        if class_log_level:
+            self.this_class_level = class_log_level
+            Monitor.enable_in_code = True
+        else:
+            self.this_class_level = Monitor.m_fatal|Monitor.m_err|Monitor.m_warn
+        if log_file:
+            self.init_log_file(log_file, do_append)
+        
 
     def set_log_level(self,level):
         self.this_class_level = level
@@ -341,7 +357,7 @@ class Monitor(object):
     # Console output depends on severity
     # File output is always printed and has higher timestamp precision and caller instance
     def write(self, caller, severity, severityText, message, lines=None):
-        r_class = caller.__class__.__name__
+        r_class = caller.__class__.__name__ if caller else ""
         space = " "
         trace_pad = f"{space:32}" if self.enabled(r_class, Monitor.m_trace) and severity != Monitor.m_trace else ""
         if self.enabled(r_class, severity) is True:
@@ -353,9 +369,12 @@ class Monitor(object):
             if lines:
                 for line in lines:
                     print(f"{space:20} line")
-        # always print everything to log
-        timestamp = f"{self.timeStamp():14.6f}"
-        self.ofile.write(f"{timestamp} {r_class:15} {id(caller):8x}: {severityText:8} {trace_pad}{message}\n")
+        # print everything to log regardless of log level
+        if self.ofile:
+            timestamp = f"{self.timeStamp():14.6f}"
+            r_id = id(caller)
+            self.ofile.write(f"{timestamp} {r_class:15} {r_id:8x}: {severityText:8} {trace_pad}{message}\n")
+            self.ofile.flush()
     
     # Just output the timestamp and the message
     def writeTimestampWithMessage(self, message):
